@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Checklist Web App</title>
+    <style>
+        body { font-family: Arial, sans-serif; }
+        .checklist { margin: 20px; }
+        .checklist-item { display: flex; align-items: center; margin-bottom: 10px; }
+        .checklist-item input[type="text"] { flex-grow: 1; }
+        .checklist-item input[type="checkbox"] { margin-right: 10px; }
+        .checked { text-decoration: line-through; color: gray; }
+        #lists { margin-bottom: 20px; }
+        button { margin: 5px; }
+    </style>
+</head>
+<body>
+    <div id="lists">
+        <label for="list-select">Выберите список:</label>
+        <select id="list-select"></select>
+        <button onclick="createList()">Создать новый список</button>
+    </div>
+    
+    <div class="checklist">
+        <h2 id="list-title">Checklist</h2>
+        <div id="items"></div>
+        <button onclick="addItem()">Добавить пункт</button>
+        <button onclick="saveData()">Сохранить</button>
+        <button onclick="shareList()">Поделиться</button>
+    </div>
+
+    <script>
+        let lists = {};
+        let currentList = null;
+
+        function loadLists() {
+            const select = document.getElementById('list-select');
+            select.innerHTML = '';
+            Object.keys(lists).forEach(name => {
+                const option = document.createElement('option');
+                option.value = name;
+                option.textContent = name;
+                select.appendChild(option);
+            });
+            select.addEventListener('change', () => {
+                currentList = select.value;
+                displayList();
+            });
+            if (Object.keys(lists).length > 0) {
+                currentList = Object.keys(lists)[0];
+                displayList();
+            }
+        }
+
+        function createList() {
+            const name = prompt("Введите название нового списка:");
+            if (name && !lists[name]) {
+                lists[name] = [];
+                loadLists();
+                document.getElementById('list-select').value = name;
+                currentList = name;
+                displayList();
+            }
+        }
+
+        function displayList() {
+            const title = document.getElementById('list-title');
+            title.textContent = currentList;
+            const itemsDiv = document.getElementById('items');
+            itemsDiv.innerHTML = '';
+            lists[currentList].forEach((item, index) => {
+                const div = document.createElement('div');
+                div.className = 'checklist-item';
+                div.innerHTML = `
+                    <input type="checkbox" ${item.done ? 'checked' : ''} onchange="toggleItem(${index})">
+                    <input type="text" value="${item.task}" onchange="editItem(${index}, this.value)">
+                    <button onclick="deleteItem(${index})">Удалить</button>
+                `;
+                if (item.done) {
+                    div.querySelector('input[type="text"]').classList.add('checked');
+                }
+                itemsDiv.appendChild(div);
+            });
+        }
+
+        function addItem() {
+            lists[currentList].push({ task: '', done: false });
+            displayList();
+        }
+
+        function toggleItem(index) {
+            const item = lists[currentList][index];
+            item.done = !item.done;
+            sortList();
+            displayList();
+        }
+
+        function editItem(index, value) {
+            lists[currentList][index].task = value;
+        }
+
+        function deleteItem(index) {
+            lists[currentList].splice(index, 1);
+            displayList();
+        }
+
+        function sortList() {
+            lists[currentList].sort((a, b) => a.done - b.done);
+        }
+
+        function saveData() {
+            Telegram.WebApp.sendData(JSON.stringify(lists));
+        }
+
+        function shareList() {
+            const listContent = lists[currentList].map(item => `${item.done ? '✔️' : '❌'} ${item.task}`).join('\n');
+            Telegram.WebApp.sendData(`Поделитесь этим списком:\n${listContent}`);
+        }
+
+        window.onload = function() {
+            loadLists();
+        };
+    </script>
+</body>
+</html>
